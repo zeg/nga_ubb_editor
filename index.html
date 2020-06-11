@@ -7,45 +7,18 @@
 	<link rel="stylesheet" href="contents.css">
 	<!--<link rel="stylesheet" href="include/spoiler.css">-->
 </head>
-<body id="main">
+<body id="main"><a id='bugrep' href='https://bbs.nga.cn/read.php?tid=18025544' target='_blank' style='line-height:2.4em;color:darkred;cursor:point;display:none'>[编辑器bug反馈]</a>
 <form>
-<textarea name="post_content" rows="10" cols="80" style='display:none'>[h]done[/h]
-[quote]编辑完成后点击源码 复制到NGA编辑器中即可[s:ac:blink]
-BUG和功能反馈: [url]https://bbs.nga.cn/read.php?tid=18025544[/url][table][tr][td][font=simsun]字体[/font][/td][td][size=150%]字号[/size][/td][td][color=red]颜色[/color][/td][td][b]粗体[/b][/td][td][i]斜体[/i][/td][td][u]下划线[/u][/td][td][del]删除线[/del][/td][td][sup]上角标[/sup][/td][td][sub]下角标[/sub][/td][/tr][tr][td]列表[/td][td]引用[/td][td]对齐[/td][td]超链接[/td][td]插入图片[/td][td]插入表格[/td][td]分隔线/段落标题[/td][td]折叠[/td][td]表情包[/td][/tr][/table][/quote]
-[h]todo[/h]
-[quote]
-[list]
-[*]功能
-[list]
-[*]表格
-[list]
-[*]合并单元格
-[*]定义宽度百分比
-[/list]
-[*]引用套引用(目前不行)
-[*]左右浮动
-[*]自动保存
-[/list]
-[*]油猴版
-[list]
-[*]嵌入NGA
-[*]上传图片
-[/list]
-[/list]
-[collapse=这是折叠的标题 可以空白]这是折叠的内容 可以空白[/collapse][/quote]
-[h]biug[/h]
-[quote][b]1.从NGA直接复制来的代码直接粘贴到源码中有可能会导致排版混乱[/b](比如size标签中填充一堆quote list color时就会导致排版混乱)
-[color=red][b]2.还有一些其他原因在从源码切换至可视化时会崩(极低概率) 注意保存UBB源码...[/b][/color][/quote]
-
-</textarea>
+<textarea name="post_content" rows="10" cols="80" style='display:none'></textarea>
 </form>
 <script>
-	CKEDITOR_BASEPATH='./';
+CKEDITOR_BASEPATH='./';
+var _VER = location.search.match(/v=([\d\.]+)/)
+_VER = _VER ? _VER[1] : '1.02'
+document.write('<script src="./ckeditor_full.js?v='+_VER+'"></'+'script>')
 </script>
-<script src="./ckeditor_full.js?v=1.02"></script>
 <script>
-if(location.search.indexOf('blank')!=-1)
-	document.getElementsByName('post_content')[0].value=''
+CKEDITOR.timestamp = _VER
 
 var _ORIGIN = '', _PREVHEIGHT=0
 , setHeight = function(){
@@ -58,13 +31,13 @@ var _ORIGIN = '', _PREVHEIGHT=0
 	}
 
 CKEDITOR.on("instanceReady", function(e){
+	var x = document.getElementById('cke_45'), y = document.getElementById('bugrep')
+	y.style.display=''
+	x.appendChild(y)
 	var x = document.getElementById('cke_1_top') , y=x.getBoundingClientRect()
 	x.parentNode.style.paddingTop = y.height+'px'
-	console.log(1)
-	console.log(document.documentElement.scrollHeight)
 	setHeight()
 	CKEDITOR.instances.post_content.on( 'change', function() {
-		console.log(2)
 		setHeight()
 		});
 	
@@ -81,9 +54,17 @@ _ORIGIN = e.origin
 if(call){
 	if(call=='loadContentFromParentFrame'){
 		document.getElementsByName('post_content')[0].value = a
+		CKEDITOR.instances.post_content.setData(a)
 		}
 	else if(call=='returnContentToParent'){
 		window.parent.postMessage('wysiwygEditorReciveContent null '+CKEDITOR.instances.post_content.getData(),e.origin)
+		}
+	else if(call=='setVarFromParentFrame'){
+		eval(a)
+		}
+	else if(call=='insertCodeFromParentFrame'){
+		//光标处插入bbs代码
+		console.log(a)
 		}
 	}
 })

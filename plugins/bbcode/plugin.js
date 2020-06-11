@@ -609,7 +609,7 @@
 			CKEDITOR.tools.extend( config, {
 				// This one is for backwards compatibility only as
 				// editor#enterMode is already set at this stage (https://dev.ckeditor.com/ticket/11202).
-				enterMode: CKEDITOR.ENTER_P,
+				enterMode: CKEDITOR.ENTER_BR,
 				basicEntities: false,
 				entities: false,
 				fillEmptyBlocks: false
@@ -619,7 +619,7 @@
 
 			// Since CKEditor 4.3.0, editor#(active)enterMode is set before
 			// beforeInit. Properties got to be updated (https://dev.ckeditor.com/ticket/11202).
-			editor.activeEnterMode = editor.enterMode = CKEDITOR.ENTER_P;
+			editor.activeEnterMode = editor.enterMode = CKEDITOR.ENTER_BR;
 		},
 
 		init: function( editor ) {
