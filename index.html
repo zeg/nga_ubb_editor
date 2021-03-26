@@ -20,30 +20,110 @@ document.write('<script src="./ckeditor_full.js?v='+_VER+'"></'+'script>')
 <script>
 CKEDITOR.timestamp = _VER
 
-var _ORIGIN = '', _PREVHEIGHT=0
-, setHeight = function(){
-	if(window.parent && _ORIGIN){
-		if(_PREVHEIGHT!=document.documentElement.scrollHeight){
-			_PREVHEIGHT = document.documentElement.scrollHeight
-			window.parent.postMessage('wysiwygEditorReciveHeight null '+_PREVHEIGHT,_ORIGIN)
+var _ORIGIN = ''
+
+
+var __IMG_GET_SRC = function(){//向上层窗口请求[img]的显示src
+console.log('__IMG_GET_SRC call')
+try{
+var s,f = document.getElementById('cke_1_contents').getElementsByTagName('iframe')[0].contentWindow.document
+}catch(e){}
+if(f){
+	__IMG_GET_SRC.index={}
+	var x = f.getElementsByTagName('img')
+	for(var i=0;i<x.length;i++){
+		console.log(x[i])
+		if(x[i].src=='about:blank'){
+			var srcoo = x[i].getAttribute('srcoo')
+			if(srcoo){
+				var o = x[i]
+				o.setAttribute('data-cke-saved-src',srcoo)
+				if(!o.id)
+					o.id = 'code_img_'+(__IMG_GET_SRC.i++)
+				__IMG_GET_SRC.index[o.id] = o
+				window.parent.postMessage('wysiwygEditorParseImgSrc null '+JSON.stringify({'id':o.id,'src':srcoo}),_ORIGIN)
+				}
 			}
 		}
 	}
+}//
+__IMG_GET_SRC.i=1
+__IMG_GET_SRC.index={}
 
-CKEDITOR.on("instanceReady", function(e){
+var __IMG_SET_SRC = function(s){//设置图片src
+console.log('__IMG_SET_SRC call')
+if(s){
+	var o = __IMG_GET_SRC.index[s.id]
+	if(s.srct && s.src!=s.srct && s.w && s.h)
+		o.src = s.srct
+	else
+		o.src = s.src
+	if(s.w&&s.h){
+		o.style.width = s.w+'px'
+		o.style.height = s.h+'px'
+		}
+	}
+}//
+
+var setHeight = function(){//设置上层窗口高度
+if(window.parent && _ORIGIN){
+	if(_PREVHEIGHT!=document.documentElement.scrollHeight){
+		_PREVHEIGHT = document.documentElement.scrollHeight
+		window.parent.postMessage('wysiwygEditorReciveHeight null '+_PREVHEIGHT,_ORIGIN)
+		}
+	}
+}
+,_PREVHEIGHT=0
+
+
+
+
+
+
+
+
+
+
+CKEDITOR.on("instanceReady", function(e){//编辑器窗口ready
 	var x = document.getElementById('cke_45'), y = document.getElementById('bugrep')
 	y.style.display=''
 	x.appendChild(y)
 	var x = document.getElementById('cke_1_top') , y=x.getBoundingClientRect()
 	x.parentNode.style.paddingTop = y.height+'px'
 	setHeight()
-	CKEDITOR.instances.post_content.on( 'change', function() {
-		setHeight()
-		});
-	
 });
 
-CKEDITOR.replace('post_content');
+CKEDITOR.replace('post_content');//启动
+
+CKEDITOR.instances.post_content.on( 'dataReady', function() {//设置编辑器内容时 (setdata/element.create....
+	setHeight()
+	__IMG_GET_SRC()
+	});
+
+
+CKEDITOR.instances.post_content.on( 'change', function() {//内容改变时 (打字...
+	setHeight()
+	});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 window.addEventListener("message", function(e){
@@ -65,6 +145,17 @@ if(call){
 	else if(call=='insertCodeFromParentFrame'){
 		//光标处插入bbs代码
 		console.log(a)
+		a = JSON.parse(a)
+		if(a.extra && a.extra.code=='img'){
+			CKEDITOR.instances.post_content.insertElement(
+				CKEDITOR.dom.element.createFromHtml('<img data-cke-saved-src="'+a.extra.srcoo+'" src="'+a.extra.src+'" id="code_img_0" style="width:'+a.extra.w+'px; height:'+a.extra.h+'px;">')
+				)
+			}
+		}
+	else if(call=='setImgSrc'){
+		//接收上层窗口返回的图片src
+		console.log(a)
+		__IMG_SET_SRC(JSON.parse(a))
 		}
 	}
 })

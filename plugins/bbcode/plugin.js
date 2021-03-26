@@ -30,8 +30,54 @@
 	var bbcodeMap = { b: 'strong', del: 's', i: 'em',u:'u', color: 'span', size: 'span',  align: 'div', collapse:'div', quote: 'blockquote', code: 'code', url: 'a', email: 'span', img: 'span', '*': 'li', list: 'ol' ,tr:'tr',td:'td',table:'table',font:'span',sub:'sub',sup:'sup', h:'h4'},
 		convertMap = {h4:'h',strong: 'b', b: 'b', s: 'del',u:'u', em: 'i', i: 'i', code: 'code', li: '*' ,table:'table',tr:'tr',td:'td',sub:'sub',sup:'sup' },
 		tagnameMap = { strong: 'b', em: 'i', s: 'del',u:'u', li: '*', ul: 'list', ol: 'list', code: 'code', a: 'link', img: 'img', blockquote: 'quote',table:'table',tr:'tr',td:'td' },
-		stylesMap = { color: 'color', size: 'font-size', align: 'text-align' ,font:'font-family'},
-		attributesMap = { url: 'href', email: 'mailhref', quote: 'cite', list: 'listType',collapse:'title' };
+		attrMap = {
+			color: function(opt,style,attr){
+				style.color = opt
+				}
+			,size:function(opt,style,attr){
+				style['font-size'] = opt
+				}
+			,align:function(opt,style,attr){
+				style['text-align'] = opt
+				} 
+			,font:function(opt,style,attr){
+				style['font-family'] = opt
+				}
+			,url:function(opt,style,attr){
+				attr['href'] = opt
+				}
+			,email:function(opt,style,attr){
+				attr['mailhref'] = opt
+				}
+			,quote:function(opt,style,attr){
+				attr['cite'] = opt
+				}
+			,list:function(opt,style,attr){
+				attr['listType'] = opt
+				}
+			,td:function(opt,style,attr){
+				opt = opt.replace(/(rowspan|colspan|width)=?([\d\.]+)/gi,function($0,k,v){
+					if(k=='width'){
+						v = parseFloat(v)
+						if(v<0)v=0
+						if(v>100)v=100
+						style[k]=v+'%'
+						}
+					else{
+						attr[k] = parseInt(v)
+						}
+					return ''
+					})
+				if(opt){
+					var v = parseFloat(opt)
+					if(v){
+						if(v<0)v=0
+						if(v>100)v=100
+						style['width']=v+'%'
+						}
+					}
+				}
+			}
 
 	// List of block-like tags.
 	var dtd = CKEDITOR.dtd,
@@ -87,7 +133,8 @@
 
 	CKEDITOR.BBCodeParser = function() {
 		this._ = {
-			bbcPartsRegex: /(?:\[([a-z*]*?)(?:=([^\]]*?))?\])|(?:\[\/([a-z]{1,16})\])/ig
+			//bbcPartsRegex: /(?:\[([a-z*]*?)(?:=([^\]]*?))?\])|(?:\[\/([a-z]{1,16})\])/ig
+			bbcPartsRegex:/\[(\/)?(code|collapse|urlreplace|quote|crypt|table|tr|td|del|u|b|i|sup|sub|span|dice|list|color|upup|size|font|align|album|img|flash|iframe|attach|url|tid|stid|pid|uid|h|l|r|randomblock)([^a-z\]][^\]]{0,100})?\]/gi
 		};
 	};
 
@@ -108,12 +155,11 @@
 
 				// "parts" is an array with the following items:
 				// 0 : The entire match for opening/closing tags and line-break;
-				// 1 : line-break;
-				// 2 : open of tag excludes option;
+				// 1 : close or open tag 
+				// 2 : tag excludes option;
 				// 3 : tag option;
-				// 4 : close of tag;
 
-				part = ( parts[ 1 ] || parts[ 3 ] || '' ).toLowerCase();
+				part = ( parts[ 2 ] || '' ).toLowerCase();
 				// Unrecognized tags should be delivered as a simple text (https://dev.ckeditor.com/ticket/7860).
 				if ( part && !bbcodeMap[ part ] ) {
 					this.onText( parts[ 0 ] );
@@ -121,11 +167,11 @@
 				}
 
 				// Opening tag
-				if ( parts[ 1 ] ) {
+				if (! parts[ 1 ] ) {
 					var tagName = bbcodeMap[ part ],
 						attribs = {},
 						styles = {},
-						optionPart = parts[ 2 ];
+						optionPart = parts[ 3 ]?parts[ 3 ].replace(/(^[\s=]+)|(\s+$)/g,''):'';
 
 					if(part=='collapse'){
 						//hack for collapse
@@ -143,8 +189,8 @@
 						// this.onText(' ');
 						this.onTagClose('div');
 
-						if(parts[ 2 ]){
-							this.onText(parts[ 2 ]);
+						if(optionPart){
+							this.onText(optionPart);
 						}
 
 						this.onTagClose('div');
@@ -154,11 +200,12 @@
 
 					}else{
 						// Special handling of justify tags, these provide the alignment as a tag name (#2248).
-						if ( part == 'left' || part == 'right' || part == 'center' || part == 'justify' ) {
+						/*if ( part == 'left' || part == 'right' || part == 'center' || part == 'justify' ) {
 							optionPart = part;
-						}
+						}*/
 
 						if ( optionPart ) {
+						/*
 							if ( part == 'list' ) {
 								if ( !isNaN( optionPart ) )
 									optionPart = 'decimal';
@@ -166,24 +213,19 @@
 									optionPart = 'lower-alpha';
 								else if ( /^[A-Z]+$/.test( optionPart ) )
 									optionPart = 'upper-alpha';
-							}
+							}*/
 
-							if ( stylesMap[ part ] ) {
-								// Font size represents percentage.
-								// if ( part == 'size' ) {
-								// 	optionPart += '%';
-								// }
+							if(attrMap[part]){
+								attrMap[part](/*CKEDITOR.tools.htmlDecode( optionPart )*/optionPart,styles,attribs)
 
-								styles[ stylesMap[ part ] ] = optionPart;
-								attribs.style = serializeStyleText( styles );
-							} else if ( attributesMap[ part ] ) {
-								// All the input BBCode is encoded at the beginning so <> characters in the textual part
-								// are later correctly preserved in HTML. However... it affects parts that now become
-								// attributes, so we need to revert that. As a matter of fact, the content should not be
-								// encoded at the beginning, but only later when creating text nodes (encoding should be more precise)
-								// but it's too late not for such changes.
-								attribs[ attributesMap[ part ] ] = CKEDITOR.tools.htmlDecode( optionPart );
-							}
+								for(var k in styles){
+									attribs.style = serializeStyleText( styles );
+									break
+									}
+
+								}
+
+
 						}
 					}
 
@@ -195,7 +237,7 @@
 					this.onTagOpen( tagName, attribs,CKEDITOR.dtd.$empty[ tagName ]);
 				}
 				// Closing tag
-				else if ( parts[ 3 ] ) {
+				else if ( parts[ 1 ] ) {
 					if(parts[ 3 ]=='collapse'){
 						this.onTagClose('div');
 						this.onTagClose('div');
@@ -372,7 +414,6 @@
 			var pendingAdd = [],
 				newPendingInline = [],
 				candidate = currentNode;
-
 
             while ( candidate.type && candidate.name != tagName ) {
                 // If this is an inline element, add it to the pending list, if we're
@@ -653,8 +694,10 @@
 						var bbcode;
 						if ( ( bbcode = element.attributes.bbcode ) ) {
 							if ( bbcode == 'img' ) {
+
 								element.name = 'img';
-								element.attributes.src = element.children[ 0 ].value;
+								element.attributes.srcoo = element.children[ 0 ].value
+								element.attributes.src = 'about:blank'
 								element.children = [];
 							} else if ( bbcode == 'email' ) {
 								element.name = 'a';
@@ -711,9 +754,8 @@
 
 						var tagName = element.name;
 
-						if ( tagName in convertMap ){
-							tagName = convertMap[ tagName ];}
-						else if ( tagName == 'span' ) {
+
+						if ( tagName == 'span' ) {
 							if ( ( value = style.color ) ) {
 								tagName = 'color';
 								// value = CKEDITOR.tools.convertRgbToHex( value );
@@ -733,6 +775,23 @@
 							} else if ( ( value = style[ 'font-family' ] ) ) {
 								tagName = 'font';
 							}
+						} else if ( tagName == 'td' ) {
+							value=''
+							var v,s=''
+							if( v = style[ 'width' ] ){
+								v = parseFloat(v)
+								if(v<0)v=0
+								if(v>100)v=100
+								value +=v
+								}
+							if(v = attributes.colspan)
+								s +=' colspan='+v
+							if(v = attributes.rowspan)
+								s +=' rowspan='+v
+							if(s&&!value)
+								value='auto'
+							value = value+s
+
 						} else if ( tagName == 'ol' || tagName == 'ul' ) {
 							if ( ( value = style[ 'list-style-type' ] ) ) {
 								switch ( value ) {
@@ -788,7 +847,10 @@
 							else
 
 							element.children = [ new CKEDITOR.htmlParser.text( src ) ];
-						}
+						}						
+						else if ( tagName in convertMap ){
+							tagName = convertMap[ tagName ];
+							}
 
 						element.name = tagName;
 						value && ( element.attributes.option = value );
